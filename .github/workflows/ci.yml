@@ -47,5 +47,4 @@ jobs:
           DB_PASS: pgpass
           DB_NAME: dd_project
         run: |
-          cd src
           pytest -q tests/
