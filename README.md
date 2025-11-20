@@ -1,26 +1,37 @@
-main — versão estável
+# Pipeline ETL - Ciência de Dados
 
-dev — integrações
+## Como executar
 
-feature/etl-raw — sua branch para ingestão
+## Inicie os containers:
+```bash```
+docker-compose -f infra/docker-compose.yml up -d
 
-feature/etl-transform — sua branch para transformações
-Commits pequenos e descritivos: EX: feat(etl): add raw ingestion script,
-fix(transform): handle missing total_amount.
+ ## Instale as dependências:
+pip install -r requirements.txt
 
+Execute o pipeline:
+python src/etl/run_pipeline.py
 
-### Checklist de entrega (o que você deve subir pro GitHub)
+## Estrutura
+src/etl/: Código do pipeline ETL
 
- /src/etl com scripts: extract.py, transform.py, load.py, run_pipeline.py.
+src/sql/: Scripts SQL
 
- /src/sql com scripts de criação de schemas/tabelas.
+src/tests/: Testes unitários
 
- /infra/docker-compose.yml (postgres).
+infra/: Configuração Docker
 
- /datasets/sample_data.csv com dados de teste.
+notebooks/: Análise exploratória
 
- /src/tests com pelo menos 1 teste.
+## 6. Para executar:
 
- Atualizar README.md com instruções de execução.
+```bash
+# 1. Iniciar infraestrutura
+docker-compose -f infra/docker-compose.yml up -d
 
- Criar PR para main com descrição das mudanças e responsabilidades
+# 2. Instalar dependências
+pip install -r requirements.txt
+
+# 3. Executar pipeline
+python src/etl/run_pipeline.py
+
