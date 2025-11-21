@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import psycopg2
+from psycopg2 import sql
 
 # Configurações de conexão
 DB_HOST = "localhost"
@@ -8,6 +9,30 @@ DB_NAME = "dd_project"
 DB_USER = "postgres"
 DB_PASS = "postgres"
 
+def create_database_if_not_exists():
+    """Cria o banco dd_project se não existir"""
+    try:
+        # Conecta no banco padrão 'postgres'
+        conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, dbname='postgres', user=DB_USER, password=DB_PASS)
+        conn.autocommit = True  # Necessário para criar banco
+        cur = conn.cursor()
+
+        # Verifica se o banco existe
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (DB_NAME,))
+        exists = cur.fetchone()
+        if exists:
+            print(f"O banco '{DB_NAME}' já existe.\n")
+        else:
+            cur.execute(sql.SQL(
+                "CREATE DATABASE {} ENCODING 'UTF8' LC_COLLATE='Portuguese_Brazil.1252' LC_CTYPE='Portuguese_Brazil.1252';"
+            ).format(sql.Identifier(DB_NAME)))
+            print(f"Banco '{DB_NAME}' criado com sucesso!\n")
+
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"[ERRO] Criando banco: {e}")
+        exit(1)
 
 def execute_queries(conn, queries):
     """Executa uma lista de queries usando a conexão passada"""
@@ -19,17 +44,19 @@ def execute_queries(conn, queries):
                 print(f"[ERRO] Query falhou:\n{query}\n{e}")
     conn.commit()
 
-
 def fetch_query(conn, query):
     """Executa uma query de seleção e retorna resultados"""
     with conn.cursor() as cur:
         cur.execute(query)
         return cur.fetchall()
 
-
 def main():
     print("AUTOMAÇÃO DE PROCESSO DE INSERTS, SELECTS E VALIDAÇÃO...\n")
 
+    # 🔹 Novo passo: criar banco se não existir
+    create_database_if_not_exists()
+
+    # 🔹 Conexão com o banco
     try:
         conn = psycopg2.connect(
             host=DB_HOST,
@@ -43,6 +70,7 @@ def main():
         print(f"Erro ao conectar ao banco: {e}")
         return
 
+    # 🔹 O resto do seu código original continua exatamente igual
     # Criar schemas
     schemas = [
         "CREATE SCHEMA IF NOT EXISTS bronze;",
@@ -147,7 +175,6 @@ def main():
 
     conn.close()
     print("Automação finalizada com sucesso!")
-
 
 if __name__ == "__main__":
     main()
