@@ -5,8 +5,8 @@ import psycopg2
 DB_HOST = "localhost"
 DB_PORT = 5432
 DB_NAME = "dd_project"
-DB_USER = "pguser"
-DB_PASS = "pgpass"
+DB_USER = "postgres"
+DB_PASS = "postgres"
 
 
 def execute_queries(conn, queries):
@@ -31,7 +31,6 @@ def main():
     print("AUTOMAÇÃO DE PROCESSO DE INSERTS, SELECTS E VALIDAÇÃO...\n")
 
     try:
-        # Conectar ao banco
         conn = psycopg2.connect(
             host=DB_HOST,
             port=DB_PORT,
@@ -39,9 +38,9 @@ def main():
             user=DB_USER,
             password=DB_PASS
         )
-        print("✅ Conectado ao banco com sucesso!\n")
+        print("Conectado com sucesso ao PostgreSQL!\n")
     except Exception as e:
-        print(f" Erro ao conectar ao banco: {e}")
+        print(f"Erro ao conectar ao banco: {e}")
         return
 
     # Criar schemas
@@ -51,7 +50,7 @@ def main():
         "CREATE SCHEMA IF NOT EXISTS gold;"
     ]
     execute_queries(conn, schemas)
-    print("Schemas criados ou já existentes.")
+    print("Schemas criados ou já existentes.\n")
 
     # Criar tabelas
     tables = [
@@ -89,9 +88,9 @@ def main():
         );"""
     ]
     execute_queries(conn, tables)
-    print("Tabelas criadas ou já existentes.")
+    print("Tabelas criadas ou já existentes.\n")
 
-    #Inserir dados de teste
+    # Inserir dados de teste
     inserts = [
         # Bronze
         """INSERT INTO bronze.sales_bronze (date, product_name, customer_id, amount) VALUES
@@ -124,9 +123,9 @@ def main():
         ('Oeste', 300.00);"""
     ]
     execute_queries(conn, inserts)
-    print( 'Dados de teste inseridos.')
+    print("Dados de teste inseridos.\n")
 
-    #Consultas de validação
+    # Consultas de validação
     validation_queries = {
         "Bronze - todas as vendas": "SELECT * FROM bronze.sales_bronze;",
         "Silver - total por produto": "SELECT product_name, SUM(amount) AS total_vendas FROM silver.sales_silver GROUP BY product_name ORDER BY total_vendas DESC;",
@@ -136,9 +135,9 @@ def main():
         "Gold - vendas por região": "SELECT region, total_sales FROM gold.regional_sales ORDER BY total_sales DESC;"
     }
 
-    print("\n--- Resultados de validação ---")
+    print("--- Resultados de validação ---\n")
     for name, query in validation_queries.items():
-        print(f"\n{name}:")
+        print(f"{name}:")
         try:
             results = fetch_query(conn, query)
             for row in results:
@@ -146,7 +145,6 @@ def main():
         except Exception as e:
             print(f"[ERRO] Consulta falhou: {e}")
 
-    # Fechar conexão
     conn.close()
     print("Automação finalizada com sucesso!")
 
