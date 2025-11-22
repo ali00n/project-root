@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import psycopg2
 from psycopg2 import sql
+import matplotlib.pyplot as plt  # <-- adicionado aqui no topo
 
 # Configurações de conexão
 DB_HOST = "localhost"
@@ -170,6 +171,31 @@ def main():
             results = fetch_query(conn, query)
             for row in results:
                 print(", ".join(str(x) for x in row))
+
+            # 🔹 Implementação Matplotlib apenas para visualização
+            if name == "Silver - total por produto":
+                produtos = [r[0] for r in results]
+                totais = [r[1] for r in results]
+                plt.figure(figsize=(8, 5))
+                plt.bar(produtos, totais, color='skyblue', edgecolor='black')
+                plt.title("Total de Vendas por Produto (Silver)")
+                plt.xlabel("Produto")
+                plt.ylabel("Total Vendas")
+                for i, v in enumerate(totais):
+                    plt.text(i, v + 5, str(round(v, 2)), ha='center')
+                plt.show()
+
+            elif name == "Gold - vendas por região":
+                regioes = [r[0] for r in results]
+                vendas = [r[1] for r in results]
+                plt.figure(figsize=(8, 5))
+                plt.pie(vendas, labels=regioes, autopct='%1.1f%%', startangle=140,
+                        colors=['#66b3ff', '#99ff99', '#ff9999', '#ffcc99'])
+                plt.title("Vendas por Região (Gold)")
+                plt.show()
+                plt.show(block=True)
+
+
         except Exception as e:
             print(f"[ERRO] Consulta falhou: {e}")
 
