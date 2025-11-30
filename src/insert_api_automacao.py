@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 import psycopg2
-import matplotlib.pyplot as plt
 import time
 from services.fipe_api_client import FipeApiClient, parse_valor_fipe
-
+import os
+import csv
+import matplotlib.pyplot as plt
 
 DB_HOST = "localhost"
 DB_PORT = 5432
 DB_NAME = "fipe_banco"
 DB_USER = "postgres"
 DB_PASS = "postgres"
-
 
 # ================================================================
 #   CONEXÃO COM O BANCO
@@ -30,14 +30,37 @@ def connect_db():
         print(f"[ERRO] Conexão falhou: {e}")
         exit(1)
 
-
 # ================================================================
 #   INSERÇÃO — BRONZE
 # ================================================================
+# ================================================================
+#   INSERÇÃO — BRONZE (cria tabela se não existir)
+# ================================================================
 def insert_bronze(conn, registros):
     cur = conn.cursor()
+
+    # Cria o schema se não existir
+    cur.execute("CREATE SCHEMA IF NOT EXISTS bronze;")
+
+    # Cria a tabela se não existir
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS bronze.fipe_raw (
+            id SERIAL PRIMARY KEY,
+            marca VARCHAR(50) NOT NULL,
+            modelo VARCHAR(100) NOT NULL,
+            ano_modelo VARCHAR(10) NOT NULL,
+            codigo_marca INTEGER NOT NULL,
+            codigo_modelo INTEGER NOT NULL,
+            codigo_ano VARCHAR(20) NOT NULL,
+            valor VARCHAR(30),
+            valor_numeric NUMERIC(12,2)
+        );
+    """)
+
+    # Limpa a tabela antes de inserir
     cur.execute("DELETE FROM bronze.fipe_raw;")
 
+    # Insere os registros
     for r in registros:
         cur.execute("""
             INSERT INTO bronze.fipe_raw
@@ -58,12 +81,26 @@ def insert_bronze(conn, registros):
     print(f"BRONZE OK! Inseridos {len(registros)} registros.\n")
 
 
+
 # ================================================================
 #   INSERÇÃO — SILVER (18k–30k)
 # ================================================================
 def insert_silver(conn):
     cur = conn.cursor()
 
+    # Cria o schema se não existir
+    cur.execute("CREATE SCHEMA IF NOT EXISTS silver;")
+
+    # Cria tabela se não existir
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS silver.fipe_limited (
+            id SERIAL PRIMARY KEY,
+            marca VARCHAR(50) NOT NULL,
+            modelo VARCHAR(100) NOT NULL,
+            ano_modelo VARCHAR(10) NOT NULL,
+            valor_numeric NUMERIC(12,2)
+        );
+    """)
     cur.execute("DELETE FROM silver.fipe_limited;")
 
     cur.execute("""
@@ -73,17 +110,25 @@ def insert_silver(conn):
         WHERE valor_numeric BETWEEN 18000 AND 30000
         ORDER BY valor_numeric DESC;
     """)
-
     conn.commit()
     print("SILVER OK! (18k–30k filtrado)\n")
 
-
-# ================================================================
-#   INSERÇÃO — GOLD (média por modelo)
-# ================================================================
 def insert_gold(conn):
     cur = conn.cursor()
 
+    # Cria o schema se não existir
+    cur.execute("CREATE SCHEMA IF NOT EXISTS gold;")
+
+    # Cria tabela se não existir
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS gold.fipe_summary (
+            id SERIAL PRIMARY KEY,
+            marca VARCHAR(50) NOT NULL,
+            modelo VARCHAR(100) NOT NULL,
+            media_valor NUMERIC(12,2),
+            qtd_registros INTEGER
+        );
+    """)
     cur.execute("DELETE FROM gold.fipe_summary;")
 
     cur.execute("""
@@ -97,9 +142,9 @@ def insert_gold(conn):
         GROUP BY marca, modelo
         ORDER BY AVG(valor_numeric) DESC;
     """)
-
     conn.commit()
     print("GOLD OK! (médias por modelo)\n")
+
 
 
 # ================================================================
@@ -115,6 +160,8 @@ def gerar_grafico(conn):
     """)
 
     rows = cur.fetchall()
+    print("Rows obtidas do banco:", rows)  # DEBUG
+
     if not rows:
         print("Nenhum dado para gráficos!")
         return
@@ -122,6 +169,17 @@ def gerar_grafico(conn):
     modelos = [r[0] for r in rows]
     valores = [r[1] for r in rows]
 
+    # Salvar CSV
+    csv_path = "datasets/sample_data.csv"
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Modelo", "Valor"])
+        writer.writerows(rows)
+
+    print(f"Dados salvos em: {csv_path}")
+
+    # Plotar gráfico
     plt.figure(figsize=(10, 5))
     plt.bar(modelos, valores, edgecolor='black')
     plt.xticks(rotation=45, ha='right')
@@ -136,7 +194,7 @@ def gerar_grafico(conn):
 #   MAIN
 # ================================================================
 def main():
-    print("\n=== COLETA FIPE (Honda + Yamaha) ===\n")
+    print("\n=== COLETA FIPE (Honda + Yamaha — 50 modelos cada) ===\n")
     conn = connect_db()
     api = FipeApiClient()
 
@@ -152,15 +210,23 @@ def main():
             continue
 
         print(f"\n=== MARCA: {nome} ===")
+
         modelos = api.get_modelos(m["codigo"])
 
+        # 🔥 contador para limitar x modelos por marca
+        modelos_coletados = 0
+
         for mod in modelos:
+            if modelos_coletados >= 10:
+                print(f"Limite de {modelos_coletados} modelos alcançado para {nome}.")
+                break
+
             print(f"→ Modelo: {mod['nome']}")
             anos = api.get_anos(m["codigo"], mod["codigo"])
 
             for ano in anos:
                 preco = api.get_preco(m["codigo"], mod["codigo"], ano["codigo"])
-                time.sleep(0.2)  # <-- DELAY para evitar bloqueio
+                time.sleep(0.1)
 
                 if not preco:
                     continue
@@ -181,17 +247,21 @@ def main():
 
                 print(f"✓ {nome} - {mod['nome']} - {ano['codigo']} → {valor_str}")
 
-    print(f"\nTotal coletado: {len(registros_final)} registros.\n")
+                modelos_coletados += 1  # incrementa depois de pegar os anos do modelo
 
-    # Inserções
+        print(f"✓ Total coletado da marca {nome}: {modelos_coletados} modelos\n")
+
+    print(f"\nTOTAL GERAL COLETADO: {len(registros_final)} registros.\n")
+
+    # Inserções finais no banco
     insert_bronze(conn, registros_final)
     insert_silver(conn)
     insert_gold(conn)
 
-    # Gráficos
     gerar_grafico(conn)
 
     print("\nProcesso concluído com sucesso!\n")
+
 
 
 if __name__ == "__main__":
