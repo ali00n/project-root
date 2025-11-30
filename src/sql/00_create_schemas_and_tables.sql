@@ -1,5 +1,5 @@
 -- Script de criação de schemas e tabelas
--- Este script é executado automaticamente pelo pipeline ETL
+-- Este script é executado automaticamente pelo pipeline ETL < -----
 
 -- Schemas já foram criados pelo python mas vamos garantimos aqui também
 CREATE SCHEMA IF NOT EXISTS raw;

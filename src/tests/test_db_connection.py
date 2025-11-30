@@ -17,10 +17,10 @@ def main():
             user=DB_USER,
             password=DB_PASS
         )
-        print(f"✅ Conexão com o banco '{DB_NAME}' realizada com sucesso!")
+        print(f"Conexão com o banco '{DB_NAME}' realizada com sucesso!")
         conn.close()
     except Exception as e:
-        print(f"❌ Erro ao conectar ao banco '{DB_NAME}': {e}")
+        print(f"Erro ao conectar ao banco '{DB_NAME}': {e}")
 
 if __name__ == "__main__":
     main()

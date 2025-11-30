@@ -42,8 +42,7 @@ CREATE TABLE IF NOT EXISTS gold.regional_sales (
     region TEXT,
     total_sales NUMERIC
 );
-
--- Agora sim você pode criar índices e rodar ANALYZE
+                            '''ANALYZE'''
 CREATE INDEX IF NOT EXISTS idx_bronze_sales_date ON bronze.sales_bronze(date);
 CREATE INDEX IF NOT EXISTS idx_bronze_sales_product ON bronze.sales_bronze(product_name);
 CREATE INDEX IF NOT EXISTS idx_bronze_sales_customer ON bronze.sales_bronze(customer_id);

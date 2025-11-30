@@ -1,6 +1,5 @@
 # test_transform.py
 import pandas as pd
-from src.etl.transform import clean_data
 
 def test_date_parsing():
     df = pd.DataFrame({

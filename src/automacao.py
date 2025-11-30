@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import psycopg2
 from psycopg2 import sql
-import matplotlib.pyplot as plt  # <-- adicionado aqui no topo
+import matplotlib.pyplot as plt
+from src.services.fipe_api_client import GovApiClient
+import time
 
 # Configurações de conexão
 DB_HOST = "localhost"
@@ -13,12 +15,10 @@ DB_PASS = "postgres"
 def create_database_if_not_exists():
     """Cria o banco dd_project se não existir"""
     try:
-        # Conecta no banco padrão 'postgres'
         conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, dbname='postgres', user=DB_USER, password=DB_PASS)
-        conn.autocommit = True  # Necessário para criar banco
+        conn.autocommit = True
         cur = conn.cursor()
 
-        # Verifica se o banco existe
         cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (DB_NAME,))
         exists = cur.fetchone()
         if exists:
@@ -51,13 +51,13 @@ def fetch_query(conn, query):
         cur.execute(query)
         return cur.fetchall()
 
-def main():
-    print("AUTOMAÇÃO DE PROCESSO DE INSERTS, SELECTS E VALIDAÇÃO...\n")
 
-    # 🔹 Novo passo: criar banco se não existir
+def main():
+    print("AUTOMAÇÃO DE PROCESSO DE INSERTS, SELECTS, VALIDAÇÃO E DADOS DO GOVERNO...\n")
+
     create_database_if_not_exists()
 
-    # 🔹 Conexão com o banco
+    # Conexão
     try:
         conn = psycopg2.connect(
             host=DB_HOST,
@@ -71,7 +71,6 @@ def main():
         print(f"Erro ao conectar ao banco: {e}")
         return
 
-    # 🔹 O resto do seu código original continua exatamente igual
     # Criar schemas
     schemas = [
         "CREATE SCHEMA IF NOT EXISTS bronze;",
@@ -114,14 +113,42 @@ def main():
             id SERIAL PRIMARY KEY,
             region TEXT,
             total_sales NUMERIC
+        );""",
+
+        # ==============================
+        # TABELAS DO GOVERNO
+        # ==============================
+
+        """CREATE TABLE IF NOT EXISTS bronze.gov_orgaos_siafi (
+            id SERIAL PRIMARY KEY,
+            codigo TEXT,
+            descricao TEXT,
+            tipo TEXT,
+            codigo_orgao_superior TEXT
+        );""",
+
+        """CREATE TABLE IF NOT EXISTS silver.gov_orgaos_siafi_silver (
+            id SERIAL PRIMARY KEY,
+            codigo TEXT,
+            descricao TEXT,
+            tipo TEXT
+        );""",
+
+        """CREATE TABLE IF NOT EXISTS gold.gov_orgaos_por_tipo (
+            id SERIAL PRIMARY KEY,
+            tipo TEXT,
+            total INTEGER
         );"""
     ]
+
     execute_queries(conn, tables)
     print("Tabelas criadas ou já existentes.\n")
 
-    # Inserir dados de teste
+    # ============================================================
+    # DADOS DE TESTE (SEU CÓDIGO ORIGINAL)
+    # ============================================================
+
     inserts = [
-        # Bronze
         """INSERT INTO bronze.sales_bronze (date, product_name, customer_id, amount) VALUES
         ('2025-11-01', 'Produto A', 1, 100.50),
         ('2025-11-02', 'Produto B', 2, 200.00),
@@ -129,7 +156,6 @@ def main():
         ('2025-11-04', 'Produto A', 4, 300.00),
         ('2025-11-05', 'Produto B', 5, 50.25);""",
 
-        # Silver
         """INSERT INTO silver.sales_silver (date, product_name, region, year, month, amount) VALUES
         ('2025-11-01', 'Produto A', 'Norte', 2025, 11, 100.50),
         ('2025-11-02', 'Produto B', 'Sul', 2025, 11, 200.00),
@@ -137,7 +163,6 @@ def main():
         ('2025-11-04', 'Produto A', 'Oeste', 2025, 11, 300.00),
         ('2025-11-05', 'Produto B', 'Norte', 2025, 11, 50.25);""",
 
-        # Gold
         """INSERT INTO gold.monthly_sales (year, month, total_sales) VALUES (2025, 11, 801.50);""",
 
         """INSERT INTO gold.product_performance (product_name, total_sales) VALUES
@@ -154,17 +179,85 @@ def main():
     execute_queries(conn, inserts)
     print("Dados de teste inseridos.\n")
 
-    # Consultas de validação
+    # ============================================================
+    # API DO GOVERNO — BRONZE
+    # ============================================================
+
+    print("\nBuscando dados do Governo (Órgãos SIAFI)...")
+    gov = GovApiClient()
+    orgaos = gov.get_orgaos_siafi()
+    print(f"Total recebido: {len(orgaos)} itens\n")
+
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM bronze.gov_orgaos_siafi;")
+        for item in orgaos:
+            cur.execute("""
+                INSERT INTO bronze.gov_orgaos_siafi
+                (codigo, descricao, tipo, codigo_orgao_superior)
+                VALUES (%s, %s, %s, %s);
+            """, (
+                item.get("codigo"),
+                item.get("descricao"),
+                item.get("tipo"),
+                item.get("codigoOrgaoSuperior")
+            ))
+
+    conn.commit()
+    print("Dados do Governo inseridos no BRONZE!\n")
+
+    # ============================================================
+    # SILVER
+    # ============================================================
+
+    print("Transformando dados do Governo para SILVER...")
+
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM silver.gov_orgaos_siafi_silver;")
+        cur.execute("""
+            INSERT INTO silver.gov_orgaos_siafi_silver (codigo, descricao, tipo)
+            SELECT
+                codigo,
+                UPPER(descricao),
+                tipo
+            FROM bronze.gov_orgaos_siafi;
+        """)
+    conn.commit()
+
+    print("Dados SILVER concluídos!\n")
+
+    # ============================================================
+    # GOLD
+    # ============================================================
+
+    print("Gerando GOLD (agrupamento por tipo)...")
+
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM gold.gov_orgaos_por_tipo;")
+        cur.execute("""
+            INSERT INTO gold.gov_orgaos_por_tipo (tipo, total)
+            SELECT tipo, COUNT(*)
+            FROM silver.gov_orgaos_siafi_silver
+            GROUP BY tipo
+            ORDER BY COUNT(*) DESC;
+        """)
+    conn.commit()
+
+    print("Dados GOLD gerados!\n")
+
+    # ============================================================
+    # CONSULTAS E GRÁFICOS (ORIGINAL + NOVO GOV)
+    # ============================================================
+
     validation_queries = {
         "Bronze - todas as vendas": "SELECT * FROM bronze.sales_bronze;",
         "Silver - total por produto": "SELECT product_name, SUM(amount) AS total_vendas FROM silver.sales_silver GROUP BY product_name ORDER BY total_vendas DESC;",
         "Silver - total por região": "SELECT region, SUM(amount) AS total_vendas FROM silver.sales_silver GROUP BY region ORDER BY total_vendas DESC;",
         "Gold - total mensal": "SELECT year, month, total_sales FROM gold.monthly_sales;",
         "Gold - performance por produto": "SELECT product_name, total_sales FROM gold.product_performance ORDER BY total_sales DESC;",
-        "Gold - vendas por região": "SELECT region, total_sales FROM gold.regional_sales ORDER BY total_sales DESC;"
+        "Gold - vendas por região": "SELECT region, total_sales FROM gold.regional_sales ORDER BY total_sales DESC;",
     }
 
-    print("--- Resultados de validação ---\n")
+    print("\n--- > Resultados de validação < ---\n")
     for name, query in validation_queries.items():
         print(f"{name}:")
         try:
@@ -172,7 +265,7 @@ def main():
             for row in results:
                 print(", ".join(str(x) for x in row))
 
-            # 🔹 Implementação Matplotlib apenas para visualização
+            # GRÁFICOS ORIGINAIS8
             if name == "Silver - total por produto":
                 produtos = [r[0] for r in results]
                 totais = [r[1] for r in results]
@@ -193,14 +286,32 @@ def main():
                         colors=['#66b3ff', '#99ff99', '#ff9999', '#ffcc99'])
                 plt.title("Vendas por Região (Gold)")
                 plt.show()
-                plt.show(block=True)
-
 
         except Exception as e:
             print(f"[ERRO] Consulta falhou: {e}")
 
+    # ============================================================
+    # GRÁFICO ESPECÍFICO DO GOVERNO (NOVO)
+    # ============================================================
+
+    print("\n--- > Gráfico GOV - Órgãos por Tipo < ---")
+
+    gov_results = fetch_query(conn, "SELECT tipo, total FROM gold.gov_orgaos_por_tipo ORDER BY total DESC;")
+    tipos = [r[0] for r in gov_results]
+    totais = [r[1] for r in gov_results]
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(tipos, totais, edgecolor='black')
+    plt.title("Órgãos do Governo por Tipo (Fonte: API Portal da Transparência)")
+    plt.xlabel("Tipo")
+    plt.ylabel("Total de Órgãos")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
     conn.close()
     print("Automação finalizada com sucesso!")
+
 
 if __name__ == "__main__":
     main()
