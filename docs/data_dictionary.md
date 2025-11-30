@@ -1,84 +1,34 @@
-# 📘 Dicionário de Dados – Projeto Root
+📘 Dicionário de Dados – Projeto FIPE
+🥉 1. Camada BRONZE (bronze.fipe_raw)
 
-## 🏷 1. Camada RAW (sales_raw)
-Dados brutos, extraídos de CSV, API ou banco, sem tratamento.
+Dados brutos coletados da API FIPE, sem agregações, apenas estruturados em tabela.
 
-| Campo           | Tipo     | Descrição                                |
-|----------------|----------|--------------------------------------------|
-| transaction_id | int      | ID da transação                             |
-| product_name   | string   | Nome do produto                            |
-| quantity       | int      | Quantidade vendida                         |
-| price          | float    | Preço unitário                             |
-| date           | string   | Data no formato texto (YYYY-MM-DD)         |
-| customer_id    | int      | ID do cliente                              |
-| region         | string   | Região da venda                            |
+Campo	Tipo	Descrição
+marca	string	Nome da marca da moto
+modelo	string	Nome do modelo da moto
+ano_modelo	string	Ano/versão do modelo
+codigo_marca	int	Código da marca na FIPE
+codigo_modelo	int	Código do modelo na FIPE
+codigo_ano	int	Código do ano/versão na FIPE
+valor	string	Valor formatado como texto (ex: "R$ 25.000,00")
+valor_numeric	float	Valor convertido para número
 
----
+🥈 2. Camada SILVER (silver.fipe_limited)
 
-## 🥉 2. Camada BRONZE (sales_bronze)
-Dados estruturados, mesmo conteúdo da RAW, porém com tipos ajustados.
+Filtragem aplicada aos dados do bronze: apenas motos com valor entre 18k e 30k.
 
-| Campo           | Tipo  | Descrição                          |
-|----------------|-------|--------------------------------------|
-| transaction_id | int   | ID da transação                     |
-| product_name   | string| Nome do produto                     |
-| quantity       | int   | Quantidade vendida                  |
-| price          | float | Preço unitário                      |
-| date           | date  | Data convertida                     |
-| customer_id    | int   | ID do cliente                       |
-| region         | string| Região da venda                     |
+Campo	Tipo	Descrição
+marca	string	Nome da marca da moto
+modelo	string	Nome do modelo da moto
+ano_modelo	string	Ano/versão do modelo
+valor_numeric	float	Valor convertido para número
 
----
+🥇 3. Camada GOLD (gold.fipe_summary)
 
-## 🥈 3. Camada SILVER (sales_silver)
-Transformações aplicadas via `bronze_to_silver()`.
+Agregações realizadas a partir da camada silver: médias por modelo e quantidade de registros.
 
-| Campo         | Tipo  | Descrição                               |
-|---------------|--------|-------------------------------------------|
-| transaction_id| int    | ID da transação                          |
-| product_name  | string | Nome                                     |
-| quantity      | int    | Quantidade                               |
-| price         | float  | Preço unitário                           |
-| total_sales   | float  | price * quantity                         |
-| date          | date   | Data convertida                          |
-| year          | int    | Ano                                      |
-| month         | int    | Mês                                      |
-| day           | int    | Dia                                      |
-| customer_id   | int    | ID do cliente                            |
-| region        | string | Região da venda                          |
-
----
-
-# 🥇 4. Camada GOLD (agregações)
-
----
-
-## 🟡 gold.monthly_sales
-
-| Campo            | Tipo  | Descrição                     |
-|------------------|--------|------------------------------|
-| year             | int    | Ano                          |
-| month            | int    | Mês                          |
-| total_sales      | float  | Soma das vendas do mês       |
-| total_transactions | int | Total de transações          |
-
----
-
-## 🟡 gold.product_performance
-
-| Campo         | Tipo  | Descrição                            |
-|---------------|--------|----------------------------------------|
-| product_name  | string | Nome do produto                       |
-| total_quantity| int    | Quantidade total vendida              |
-| total_sales   | float  | Receita total                         |
-
----
-
-## 🟡 gold.regional_sales
-
-| Campo             | Tipo  | Descrição                      |
-|-------------------|--------|-------------------------------|
-| region            | string | Região                        |
-| total_sales       | float  | Receita por região            |
-| total_transactions| int    | Número de vendas              |
-
+Campo	Tipo	Descrição
+marca	string	Nome da marca da moto
+modelo	string	Nome do modelo da moto
+media_valor	float	Média do valor das motos do modelo
+qtd_registros	int	Número de registros do modelo
