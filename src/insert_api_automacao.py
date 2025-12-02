@@ -80,8 +80,6 @@ def insert_bronze(conn, registros):
     conn.commit()
     print(f"BRONZE OK! Inseridos {len(registros)} registros.\n")
 
-
-
 # ================================================================
 #   INSERÇÃO — SILVER (18k–30k)
 # ================================================================
@@ -145,8 +143,6 @@ def insert_gold(conn):
     conn.commit()
     print("GOLD OK! (médias por modelo)\n")
 
-
-
 # ================================================================
 #   GRÁFICO – TOP 10 MAIORES VALORES (SILVER)
 # ================================================================
@@ -189,19 +185,18 @@ def gerar_grafico(conn):
     plt.tight_layout()
     plt.show()
 
-
 # ================================================================
 #   MAIN
 # ================================================================
 def main():
-    print("\n=== COLETA FIPE (Honda + Yamaha — 50 modelos cada) ===\n")
+    print("\n=== COLETA FIPE (Honda + Yamaha — x modelos cada) ===\n")
     conn = connect_db()
     api = FipeApiClient()
 
     marcas_desejadas = {"HONDA", "YAMAHA"}
     registros_final = []
 
-    print("📥 Buscando marcas...")
+    print("Buscando marcas...")
     marcas = api.get_marcas()
 
     for m in marcas:
@@ -213,11 +208,11 @@ def main():
 
         modelos = api.get_modelos(m["codigo"])
 
-        # 🔥 contador para limitar x modelos por marca
+        # contador para limitar x modelos por marca
         modelos_coletados = 0
 
         for mod in modelos:
-            if modelos_coletados >= 10:
+            if modelos_coletados > 9:
                 print(f"Limite de {modelos_coletados} modelos alcançado para {nome}.")
                 break
 
@@ -226,7 +221,7 @@ def main():
 
             for ano in anos:
                 preco = api.get_preco(m["codigo"], mod["codigo"], ano["codigo"])
-                time.sleep(0.1)
+                time.sleep(0.8)
 
                 if not preco:
                     continue
@@ -261,8 +256,6 @@ def main():
     gerar_grafico(conn)
 
     print("\nProcesso concluído com sucesso!\n")
-
-
 
 if __name__ == "__main__":
     main()
