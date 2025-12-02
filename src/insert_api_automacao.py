@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 import psycopg2
 import time
-from services.fipe_api_client import FipeApiClient, parse_valor_fipe
 import os
 import csv
 import matplotlib.pyplot as plt
+from services.fipe_api_client import FipeApiClient, parse_valor_fipe
 
 DB_HOST = "localhost"
 DB_PORT = 5432
 DB_NAME = "fipe_banco"
 DB_USER = "postgres"
 DB_PASS = "postgres"
+
 
 # ================================================================
 #   CONEXÃO COM O BANCO
@@ -30,19 +31,15 @@ def connect_db():
         print(f"[ERRO] Conexão falhou: {e}")
         exit(1)
 
+
 # ================================================================
 #   INSERÇÃO — BRONZE
-# ================================================================
-# ================================================================
-#   INSERÇÃO — BRONZE (cria tabela se não existir)
 # ================================================================
 def insert_bronze(conn, registros):
     cur = conn.cursor()
 
-    # Cria o schema se não existir
     cur.execute("CREATE SCHEMA IF NOT EXISTS bronze;")
 
-    # Cria a tabela se não existir
     cur.execute("""
         CREATE TABLE IF NOT EXISTS bronze.fipe_raw (
             id SERIAL PRIMARY KEY,
@@ -57,10 +54,8 @@ def insert_bronze(conn, registros):
         );
     """)
 
-    # Limpa a tabela antes de inserir
     cur.execute("DELETE FROM bronze.fipe_raw;")
 
-    # Insere os registros
     for r in registros:
         cur.execute("""
             INSERT INTO bronze.fipe_raw
@@ -80,16 +75,15 @@ def insert_bronze(conn, registros):
     conn.commit()
     print(f"BRONZE OK! Inseridos {len(registros)} registros.\n")
 
+
 # ================================================================
 #   INSERÇÃO — SILVER (18k–30k)
 # ================================================================
 def insert_silver(conn):
     cur = conn.cursor()
 
-    # Cria o schema se não existir
     cur.execute("CREATE SCHEMA IF NOT EXISTS silver;")
 
-    # Cria tabela se não existir
     cur.execute("""
         CREATE TABLE IF NOT EXISTS silver.fipe_limited (
             id SERIAL PRIMARY KEY,
@@ -99,6 +93,7 @@ def insert_silver(conn):
             valor_numeric NUMERIC(12,2)
         );
     """)
+
     cur.execute("DELETE FROM silver.fipe_limited;")
 
     cur.execute("""
@@ -108,16 +103,19 @@ def insert_silver(conn):
         WHERE valor_numeric BETWEEN 18000 AND 30000
         ORDER BY valor_numeric DESC;
     """)
+
     conn.commit()
     print("SILVER OK! (18k–30k filtrado)\n")
 
+
+# ================================================================
+#   INSERÇÃO — GOLD
+# ================================================================
 def insert_gold(conn):
     cur = conn.cursor()
 
-    # Cria o schema se não existir
     cur.execute("CREATE SCHEMA IF NOT EXISTS gold;")
 
-    # Cria tabela se não existir
     cur.execute("""
         CREATE TABLE IF NOT EXISTS gold.fipe_summary (
             id SERIAL PRIMARY KEY,
@@ -127,6 +125,7 @@ def insert_gold(conn):
             qtd_registros INTEGER
         );
     """)
+
     cur.execute("DELETE FROM gold.fipe_summary;")
 
     cur.execute("""
@@ -140,14 +139,17 @@ def insert_gold(conn):
         GROUP BY marca, modelo
         ORDER BY AVG(valor_numeric) DESC;
     """)
+
     conn.commit()
     print("GOLD OK! (médias por modelo)\n")
 
+
 # ================================================================
-#   GRÁFICO – TOP 10 MAIORES VALORES (SILVER)
+#   GRÁFICO — TOP 10 MAIORES VALORES (SILVER)
 # ================================================================
 def gerar_grafico(conn):
     cur = conn.cursor()
+
     cur.execute("""
         SELECT modelo, valor_numeric
         FROM silver.fipe_limited
@@ -156,7 +158,6 @@ def gerar_grafico(conn):
     """)
 
     rows = cur.fetchall()
-    print("Rows obtidas do banco:", rows)  # DEBUG
 
     if not rows:
         print("Nenhum dado para gráficos!")
@@ -165,31 +166,32 @@ def gerar_grafico(conn):
     modelos = [r[0] for r in rows]
     valores = [r[1] for r in rows]
 
-    # Salvar CSV
+    os.makedirs("datasets", exist_ok=True)
     csv_path = "datasets/sample_data.csv"
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-    with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Modelo", "Valor"])
         writer.writerows(rows)
 
-    print(f"Dados salvos em: {csv_path}")
+    print(f"Dados salvos em {csv_path}")
 
-    # Plotar gráfico
     plt.figure(figsize=(10, 5))
-    plt.bar(modelos, valores, edgecolor='black')
+    plt.bar(modelos, valores, edgecolor="black")
     plt.xticks(rotation=45, ha='right')
-    plt.title("Top 10 Motos FIPE — Faixa 18k a 30k")
+    plt.title("TOP 10 Motos FIPE — Faixa 18k a 30k")
     plt.xlabel("Modelo")
     plt.ylabel("Valor (R$)")
     plt.tight_layout()
     plt.show()
 
+
 # ================================================================
 #   MAIN
 # ================================================================
 def main():
-    print("\n=== COLETA FIPE (Honda + Yamaha — x modelos cada) ===\n")
+    print("\n=== COLETA FIPE (Honda + Yamaha — 10 modelos cada) ===\n")
+
     conn = connect_db()
     api = FipeApiClient()
 
@@ -207,17 +209,17 @@ def main():
         print(f"\n=== MARCA: {nome} ===")
 
         modelos = api.get_modelos(m["codigo"])
-
-        # contador para limitar x modelos por marca
-        modelos_coletados = 0
+        modelos_coletados = 0  # controla quantos modelos já foram coletados
 
         for mod in modelos:
-            if modelos_coletados > 9:
-                print(f"Limite de {modelos_coletados} modelos alcançado para {nome}.")
+            if modelos_coletados >= 10:
+                print(f"Limite de {modelos_coletados} modelos atingido para {nome}.")
                 break
 
             print(f"→ Modelo: {mod['nome']}")
             anos = api.get_anos(m["codigo"], mod["codigo"])
+
+            encontrou_preco = False
 
             for ano in anos:
                 preco = api.get_preco(m["codigo"], mod["codigo"], ano["codigo"])
@@ -241,21 +243,24 @@ def main():
                 })
 
                 print(f"✓ {nome} - {mod['nome']} - {ano['codigo']} → {valor_str}")
+                encontrou_preco = True
 
-                modelos_coletados += 1  # incrementa depois de pegar os anos do modelo
+            if encontrou_preco:
+                modelos_coletados += 1
 
         print(f"✓ Total coletado da marca {nome}: {modelos_coletados} modelos\n")
 
     print(f"\nTOTAL GERAL COLETADO: {len(registros_final)} registros.\n")
 
-    # Inserções finais no banco
     insert_bronze(conn, registros_final)
+    print("REGISTROS FINAL:", len(registros_final))
+
     insert_silver(conn)
     insert_gold(conn)
-
     gerar_grafico(conn)
 
     print("\nProcesso concluído com sucesso!\n")
+
 
 if __name__ == "__main__":
     main()
