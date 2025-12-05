@@ -1,26 +1,50 @@
 # -*- coding: utf-8 -*-
 import psycopg2
 
-# Configurações de conexão
-DB_HOST = "localhost"
-DB_PORT = 5432
-DB_NAME = "dd_project"
-DB_USER = "postgres"
-DB_PASS = "postgres"
 
-def main():
-    try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS
-        )
-        print(f"Conexão com o banco '{DB_NAME}' realizada com sucesso!")
-        conn.close()
-    except Exception as e:
-        print(f"Erro ao conectar ao banco '{DB_NAME}': {e}")
+class DBConnection:
+    def __init__(self, host, port, dbname, user, password):
+        self.host = host
+        self.port = port
+        self.dbname = dbname
+        self.user = user
+        self.password = password
+        self.connection = None
+
+    def connect(self):
+        try:
+            self.connection = psycopg2.connect(
+                host=self.host,
+                port=self.port,
+                dbname=self.dbname,
+                user=self.user,
+                password=self.password
+            )
+            print(f"Conectado ao banco '{self.dbname}' com sucesso!")
+            return self.connection
+        except Exception as e:
+            print(f"[ERRO] Falha ao conectar: {e}")
+            return None
+
+    def disconnect(self):
+        if self.connection:
+            self.connection.close()
+            print("Conexão encerrada.")
+
+    def get_cursor(self):
+        if self.connection:
+            return self.connection.cursor()
+        return None
+
 
 if __name__ == "__main__":
-    main()
+    # Teste da conexão
+    db = DBConnection("localhost", 5432, "api_fipe", "postgres", "postgres")
+    conn = db.connect()
+
+    if conn:
+        # Teste simples
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+
+        db.disconnect()
