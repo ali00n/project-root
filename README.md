@@ -63,21 +63,27 @@ entre 18 e 30 mil Reais, final convertendo apenas 5 modelos mais caros
 - Danilo Responsável pela documentação do projeto
 - Luan Responsável pela documentação do projeto
 
----
-
 # 🚧 Como executar o projeto (será finalizado depois)  
-> Esta seção será ajustada após os testes.  
 
----
+## 1. Clonar o Repositório 
 
-# 🧰 Instruções Técnicas (Docker, Banco e MinIO)
-
-## 1. Navegar para a pasta do projeto:
 ```
-cd C:\\Users\\aliss\\Projetos_faculdade\\project-root\\infra
+git clone https://github.com/ali00n/project-root.git
 ```
 
-## 2. Iniciar todos os serviços:
+## 2. Abrir a pasta do Projeto
+
+```
+cd project_root
+```
+
+## 3. Entre na pasta infra para executar o Docker
+
+```
+cd infra
+```
+
+## 4. Iniciar todos os serviços:
 ```
 docker-compose up -d
 ```
