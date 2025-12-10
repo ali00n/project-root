@@ -59,7 +59,9 @@ entre 18 e 30 mil Reais, final convertendo apenas 5 modelos mais caros
 - Criação de um modelo preditivo.  
 
 ## 👤 Papel Individual no Projeto
-- Ingestão, limpeza, análise dos dados e desenvolvimento Python.
+- Alisson responsável pelo Código
+- Danilo Responsável pela documentação do projeto
+- Luan Responsável pela documentação do projeto
 
 ---
 
