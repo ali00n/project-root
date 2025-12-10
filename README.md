@@ -111,7 +111,7 @@ docker-compose logs -f postgres
 
 ---
 
-## 3. Testar as conexões
+## 5. Testar as conexões
 Aguardar 30 segundos:
 ```
 timeout 30
@@ -150,7 +150,7 @@ docker-compose exec minio mc ls myminio
 
 ---
 
-## 5. Verificar dados inseridos
+## 6. Verificar dados inseridos
 ```
 cd infra
 docker-compose exec postgres psql -U postgres -d fipe_banco -c "SELECT * FROM bronze.fipe_raw LIMIT 5;"
