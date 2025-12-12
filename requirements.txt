@@ -1,3 +1,4 @@
+minio
 seaborn
 matplotlib
 pandas>=2.0.0

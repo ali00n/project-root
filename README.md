@@ -93,16 +93,19 @@ pip install -r requirements.txt
 
 ▶️ Executando a Ingestão de Dados
 
-Na raiz do projeto:
+## ▶ Execução do Projeto
+
+Execute o pipeline completo com:
+
 python src/insert_api_automacao.py
 
-Esse script:
-
-Consome a API da FIPE
-
-Insere dados no PostgreSQL
-
-Pode armazenar dados no MinIO
+Este comando executa automaticamente:
+- Coleta de dados da API FIPE
+- Inserção na camada Bronze (raw)
+- Processamento para Silver (dados filtrados)
+- Agregação na camada Gold
+- Geração de arquivos CSV
+- Upload automático dos dados para o MinIO
 
 
 🔍 Verificando os Dados no Banco:

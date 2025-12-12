@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import psycopg2
 import time
 import os
 import csv
@@ -7,6 +6,8 @@ import matplotlib.pyplot as plt
 from services.fipe_api_client import FipeApiClient, parse_valor_fipe
 from src.tests.test_db_connection import DBConnection
 from services.delete_table import DatabaseCleaner
+from services.export_to_minio import MinioUploader
+
 
 
 class ApiFipe:
@@ -295,6 +296,14 @@ class ApiFipe:
         print("=" * 60 + "\n")
 
         self.gerar_grafico(conn)
+
+        # PASSO 6: Enviar arquivos para o MinIO
+        print("\n" + "=" * 60)
+        print("EXPORTAÇÃO DOS DADOS PARA O MINIO")
+        print("=" * 60 + "\n")
+
+        uploader = MinioUploader()
+        uploader.upload()
 
         # Fechar conexão
         conn.close()
