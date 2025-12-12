@@ -1,18 +1,5 @@
-import psycopg2
-import csv
-import os
 from minio import Minio
-
-# ===============================
-# CONEXÃO POSTGRES
-# ===============================
-conn = psycopg2.connect(
-    host="localhost",
-    port=5432,
-    dbname="fipe_banco",
-    user="postgres",
-    password="postgres"
-)
+import os
 
 # ===============================
 # CONEXÃO MINIO
@@ -29,35 +16,28 @@ bucket_name = "fipe"
 if not minio_client.bucket_exists(bucket_name):
     minio_client.make_bucket(bucket_name)
 
-os.makedirs("datasets", exist_ok=True)
+# ===============================
+# CAMINHOS DOS ARQUIVOS
+# ===============================
+arquivos = {
+    "silver/sample_data.csv": "src/datasets/sample_data.csv",
+    "gold/sample_data.csv": "src/docs/sample_data.csv"
+}
 
 # ===============================
-# FUNÇÃO EXPORTAR TABELA
+# UPLOAD
 # ===============================
-def exportar_tabela(schema, tabela, arquivo):
-    cur = conn.cursor()
-    cur.execute(f"SELECT * FROM {schema}.{tabela}")
-    rows = cur.fetchall()
-
-    colnames = [desc[0] for desc in cur.description]
-
-    with open(arquivo, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(colnames)
-        writer.writerows(rows)
+for destino, origem in arquivos.items():
+    if not os.path.exists(origem):
+        print(f"Arquivo não encontrado: {origem}")
+        continue
 
     minio_client.fput_object(
         bucket_name,
-        f"{schema}/{tabela}.csv",
-        arquivo
+        destino,
+        origem
     )
 
-    print(f"✔ {schema}.{tabela} enviado para o MinIO")
+    print(f"✔ {origem} enviado para MinIO → {destino}")
 
-# ===============================
-# EXPORTA SILVER E GOLD
-# ===============================
-exportar_tabela("silver", "fipe_limited", "datasets/fipe_limited.csv")
-exportar_tabela("gold", "fipe_summary", "datasets/fipe_summary.csv")
-
-conn.close()
+print("\nUPLOAD FINALIZADO COM SUCESSO")
