@@ -12,6 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../src/sql:/app/src/sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d fipe_banco"]
       interval: 10s
@@ -22,8 +23,8 @@ services:
     image: minio/minio
     container_name: minio_fipe
     ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # Console
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin

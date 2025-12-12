@@ -1,159 +1,132 @@
-# Projeto de Big Data — Tabela FIPE
+# 📊 Projeto FIPE – Ingestão de Dados com Python, PostgreSQL e MinIO
 
-## 🔍 Descrição do Problema
-- Necessidade de acessar valores válidos de veículos pela Tabela FIPE.  
-- Dificuldade para extrair dados sem ser bloqueado pela API.  
+Este projeto realiza a ingestão automática de dados da **API da Tabela FIPE**, armazenando as informações em um **PostgreSQL** e, quando necessário, em um **MinIO (S3 local)**.  
+A infraestrutura é totalmente gerenciada via **Docker Compose**.
 
-## ✅ Solução Proposta
-- Consumir dados válidos da FIPE via API e exibir todas as informações.  
-- Facilitar o acesso seguro aos dados.  
-- Utilizar informações atualizadas da API em tempo real.  
+---
 
-## 📌 Escopo do Projeto
-O projeto inclui:
-- Coleta dos dados.  
-- Processamento dos dados coletados.  
-- Armazenamento dos dados processados.  
-- Análise exploratória e estatística dos dados.  
+## 🚀 Tecnologias Utilizadas
 
-## 🏗 Arquitetura Geral
-```
-API FIPE → Python (coleta e processamento)
-        → Jupyter Notebook (testes e validações)
-        → CSV/Parquet (armazenamento)
-        → Visualizações
-```
+- Python 3.12+
+- Docker e Docker Compose
+- PostgreSQL 15
+- MinIO (S3 compatível)
+- API pública da FIPE
 
-## 🛠 Tecnologias Utilizadas
-- **Linguagem:** Python 3.12  
-- **Ferramentas:** Jupyter Notebook, GitHub  
-- **Armazenamento:** CSV, Parquet  
-- **Bibliotecas:** seaborn, matplotlib, pandas, sqlalchemy, psycopg2-binary, requests, python-dotenv, pytest, jupyter, openpyxl  
+---
 
-## 🔄 Ingestão de Dados
-- Uso de requests para coleta dos dados e filtrar para preços de modelos 
-entre 18 e 30 mil Reais, final convertendo apenas 5 modelos mais caros
+## 📁 Estrutura do Projeto
 
-## 🧹 Processamento
-- Limpeza de dados.  
-- Normalização de tipos.  
-- Combinações marca → modelo → ano.  
+```text
+project-root/
+│
+├── infra/
+│   └── docker-compose.yml
+│
+├── src/
+│   ├── insert_api_automacao.py
+│   ├── services/
+│   ├── sql/
+│   │   ├── 00_create_schemas_and_tables.sql
+│   │   ├── 01_raw_ingest.sql
+│   │   ├── 02_business_views.sql
+│   │   └── fipe_database_setup.sql
+│   └── __init__.py
+│
+├── .venv/
+└── README.md
 
-## 🗃 Armazenamento
-- Estrutura em camadas (raw, processed).  
-- Arquivos CSV e Parquet.  
+🐳 Subindo a Infraestrutura (Postgres + MinIO)
 
-## 📊 Análises Realizadas
-- Valores brutos retornados da API 
-- ⁠Schema bronze para os brutos
-- ⁠Schema Silver para tratamento de apenas 10 modelos com duas marcas (YAMAHA, HONDA) 
-  apenas pegando preços de motos entre 18k e 30k
-- ⁠Schema gold para pegar 5 maiores precos do Schema silver  
-- ⁠após todos schemas atualizara no gráfico do matplotlib
-
-## ⚠ Limitações do Projeto
-- API mesmo com requisições limitadas a 300 por minuto, se for muito rápido ela cai
-
-## 🚀 Melhorias Futuras
-- Dashboards avançados com histórico de valores.  
-- Criação de um modelo preditivo.  
-
-## 👤 Papel Individual no Projeto
-- Alisson responsável pelo Código
-- Danilo Responsável pela documentação do projeto
-- Luan Responsável pela documentação do projeto
-
-# 🚧 Como executar o projeto (será finalizado depois)  
-
-## 1. Clonar o Repositório 
-
-```
-git clone https://github.com/ali00n/project-root.git
-```
-
-## 2. Abrir a pasta do Projeto
-
-```
-cd project_root
-```
-
-## 3. Entre na pasta infra para executar o Docker
-
-```
+Entre na pasta infra:
 cd infra
-```
 
-## 4. Iniciar todos os serviços:
-```
+Suba os containers:
 docker-compose up -d
-```
 
-### Verificar status dos containers:
-```
+Verifique se estão rodando:
 docker-compose ps
-```
 
-### Ver logs:
-#### PostgreSQL
-```
-docker-compose logs postgres
-```
+Você deve ver:
+postgres_fipe
+minio_fipe
 
-#### MinIO
-```
-docker-compose logs minio
-```
+🗄️ Configuração do Banco de Dados
+Dados do PostgreSQL
 
-#### Logs em tempo real
-```
-docker-compose logs -f postgres
-```
+Host: localhost
 
----
+Porta: 5432
 
-## 5. Testar as conexões
-Aguardar 30 segundos:
-```
-timeout 30
-```
+Usuário: postgres
 
-### Testar PostgreSQL
-```
-docker-compose exec postgres pg_isready -U postgres
-```
+Senha: postgres
 
-### Conectar ao banco:
-```
-docker-compose exec postgres psql -U postgres -d fipe_banco
-```
+Banco: fipe_banco
 
-#### Comandos dentro do PostgreSQL:
-```
-\l
-\dn
-\q
-```
+Executar os scripts SQL:
+docker-compose exec postgres psql -U postgres -d fipe_banco -f /app/src/sql/00_create_schemas_and_tables.sql
+docker-compose exec postgres psql -U postgres -d fipe_banco -f /app/src/sql/01_raw_ingest.sql
+docker-compose exec postgres psql -U postgres -d fipe_banco -f /app/src/sql/02_business_views.sql
 
-### Testar MinIO
-Acessar:
-```
-http://localhost:9001
+
+🪣 Acessando o MinIO
+
+URL Console: http://localhost:9001
+
 Usuário: minioadmin
+
 Senha: minioadmin
-```
 
-Via CLI:
-```
-docker-compose exec minio mc alias set myminio http://localhost:9000 minioadmin minioadmin
-docker-compose exec minio mc ls myminio
-```
+API: http://localhost:9000
 
----
 
-## 6. Verificar dados inseridos
-```
-cd infra
-docker-compose exec postgres psql -U postgres -d fipe_banco -c "SELECT * FROM bronze.fipe_raw LIMIT 5;"
-docker-compose exec postgres psql -U postgres -d fipe_banco -c "SELECT * FROM silver.fipe_limited LIMIT 5;"
-docker-compose exec postgres psql -U postgres -d fipe_banco -c "SELECT * FROM gold.fipe_summary LIMIT 5;"
-```
+🐍 Ambiente Python
+
+Crie e ative o ambiente virtual:
+python -m venv .venv
+.venv\Scripts\activate
+
+Instale as dependências (se houver requirements.txt):
+pip install -r requirements.txt
+
+
+▶️ Executando a Ingestão de Dados
+
+Na raiz do projeto:
+python src/insert_api_automacao.py
+
+Esse script:
+
+Consome a API da FIPE
+
+Insere dados no PostgreSQL
+
+Pode armazenar dados no MinIO
+
+
+🔍 Verificando os Dados no Banco:
+docker-compose exec postgres psql -U postgres -d fipe_banco
+
+Dentro do psql:
+\dn
+\dt raw.*;
+SELECT COUNT(*) FROM raw.nome_da_tabela;
+
+🛑 Parar os Containers:
+docker-compose down
+
+Para remover volumes (⚠ apaga dados):
+docker-compose down -v
+
+
+
+
+
+
+
+
+
+
+
+
