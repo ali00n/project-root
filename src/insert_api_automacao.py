@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 import time
 import os
+import sys
 import csv
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
 import matplotlib.pyplot as plt
-from services.fipe_api_client import FipeApiClient, parse_valor_fipe
+from src.services.fipe_api_client import FipeApiClient, parse_valor_fipe
 from src.tests.test_db_connection import DBConnection
-from services.delete_table import DatabaseCleaner
-from services.export_to_minio import MinioUploader
+from src.services.delete_table import DatabaseCleaner
+from src.services.export_to_minio import MinioUploader
 
 
 
